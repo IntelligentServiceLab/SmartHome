@@ -1,0 +1,21 @@
+server:
+  port: 8083  # MQTT微服务端口号
+
+spring:
+  application:
+    name: smart-home-mqtt
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848  # NaCos服务器地址
+  jackson:
+    time-zone: Asia/Shanghai
+  datasource:
+    url: jdbc:mysql://localhost:3306/smarthome?useSSL=false&serverTimezone=UTC
+    username: root
+    password: 123456
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    database-platform: org.hibernate.dialect.MySQL8Dialect

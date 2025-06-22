@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/model/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/service-order/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/service-product/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/smart-home-bpmn/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/smart-home-device/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/smart-home-device/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/smart-home-manage/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/smart-home-mqtt/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/smart-home-mqtt/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/smarthomedevice/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
+  </component>
+</project>

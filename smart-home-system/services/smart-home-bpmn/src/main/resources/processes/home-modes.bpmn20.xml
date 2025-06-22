@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:flowable="http://flowable.org/bpmn"
+                  xmlns:tns="http://www.flowable.org/processdef"
+                  targetNamespace="http://www.flowable.org/processdef">
+
+    <bpmn:process id="homeModeProcess" name="家庭模式流程" isExecutable="true">
+
+        <bpmn:startEvent id="startEvent" name="启动">
+            <bpmn:outgoing>flow_start_gateway</bpmn:outgoing>
+        </bpmn:startEvent>
+
+        <bpmn:exclusiveGateway id="modeGateway" name="选择模式">
+            <bpmn:incoming>flow_start_gateway</bpmn:incoming>
+            <bpmn:outgoing>flow_home</bpmn:outgoing>
+            <bpmn:outgoing>flow_away</bpmn:outgoing>
+            <bpmn:outgoing>flow_sleep</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <bpmn:serviceTask id="homeTask" name="回家模式" flowable:delegateExpression="${homeModeTask}">
+            <bpmn:incoming>flow_home</bpmn:incoming>
+            <bpmn:outgoing>flow_home_end</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:serviceTask id="awayTask" name="离家模式" flowable:delegateExpression="${awayModeTask}">
+            <bpmn:incoming>flow_away</bpmn:incoming>
+            <bpmn:outgoing>flow_away_end</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:serviceTask id="sleepTask" name="睡觉模式" flowable:delegateExpression="${sleepModeTask}">
+            <bpmn:incoming>flow_sleep</bpmn:incoming>
+            <bpmn:outgoing>flow_sleep_end</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:endEvent id="endEvent" name="结束">
+            <bpmn:incoming>flow_home_end</bpmn:incoming>
+            <bpmn:incoming>flow_away_end</bpmn:incoming>
+            <bpmn:incoming>flow_sleep_end</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <!-- 条件流程 -->
+        <bpmn:sequenceFlow id="flow_start_gateway" sourceRef="startEvent" targetRef="modeGateway"/>
+        <bpmn:sequenceFlow id="flow_home" sourceRef="modeGateway" targetRef="homeTask">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${userStatus == 'home'}]]></bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="flow_away" sourceRef="modeGateway" targetRef="awayTask">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${userStatus == 'away'}]]></bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="flow_sleep" sourceRef="modeGateway" targetRef="sleepTask">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${userStatus == 'sleep'}]]></bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="flow_home_end" sourceRef="homeTask" targetRef="endEvent"/>
+        <bpmn:sequenceFlow id="flow_away_end" sourceRef="awayTask" targetRef="endEvent"/>
+        <bpmn:sequenceFlow id="flow_sleep_end" sourceRef="sleepTask" targetRef="endEvent"/>
+
+    </bpmn:process>
+</bpmn:definitions>

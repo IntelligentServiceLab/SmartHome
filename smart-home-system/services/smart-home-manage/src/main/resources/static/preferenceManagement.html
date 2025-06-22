@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>偏好管理</title>
+  <style>
+    body { font-family: sans-serif; background: #f4f6f9; margin: 0; }
+    header { background-color: #3f51b5; color: white; padding: 16px; font-size: 20px; text-align: center; position: relative; }
+    .container { padding: 20px; }
+    h2 { margin-top: 0; }
+    .form-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .form-group label {
+      font-weight: bold;
+      margin-left: 10px;
+    }
+    .form-group input, .form-group select {
+      padding: 8px;
+      font-size: 16px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    .form-group button {
+      background-color: #3f51b5;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    .error {
+      color: red;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+<header>
+  🌟 偏好管理
+  <div style="position: absolute; left: 20px; top: 16px;">
+    <a id="backBtn" href="#">🔙 返回</a>
+  </div>
+</header>
+
+<div class="container">
+  <h2 id="roomTitle">加载中...</h2>
+
+  <!-- 表单区域 -->
+  <div class="form-group">
+<!--    <label for="preferenceId">偏好ID：</label>-->
+    <input type="text" id="preferenceId" placeholder="请输入偏好ID" />
+
+<!--    <label for="preferenceName">偏好名称：</label>-->
+    <input type="text" id="preferenceName" placeholder="请输入偏好名称" />
+
+<!--    <label for="preferenceValue">偏好值：</label>-->
+    <input type="text" id="preferenceValue" placeholder="请输入偏好值" />
+
+<!--    <label for="preferenceType">偏好类型：</label>-->
+    <select id="preferenceType">
+      <option value="temperature">温度</option>
+      <option value="humidity">湿度</option>
+      <option value="light">光照</option>
+    </select>
+
+    <button>添加偏好</button>
+  </div>
+
+  <div class="error" id="errorMessage"></div>
+
+  <!-- 偏好表格 -->
+  <table>
+    <thead>
+    <tr>
+      <th>偏好ID</th>
+      <th>偏好名称</th>
+      <th>偏好值</th>
+      <th>偏好类型</th>
+      <th>创建时间</th>
+      <th>更新时间</th>
+      <th>操作</th>
+    </tr>
+    </thead>
+    <tbody id="preferenceList"></tbody>
+  </table>
+</div>
+
+<script>
+  const roomId = new URLSearchParams(window.location.search).get('roomId');
+  let currentRoom = null;
+
+  function formatDate(isoString) {
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
+  function showError(msg) {
+    document.getElementById("errorMessage").innerText = msg;
+  }
+
+  function clearError() {
+    document.getElementById("errorMessage").innerText = "";
+  }
+
+  function clearForm() {
+    document.getElementById("preferenceId").value = "";
+    document.getElementById("preferenceName").value = "";
+    document.getElementById("preferenceValue").value = "";
+    document.getElementById("preferenceType").value = "temperature";
+    document.querySelector(".form-group button").innerText = "添加偏好";
+    document.querySelector(".form-group button").onclick = addPreference;
+    clearError();
+  }
+
+  async function loadRoomInfo() {
+    try {
+      const res = await fetch(`/api/rooms/${roomId}`);
+      currentRoom = await res.json();
+      document.getElementById("roomTitle").innerText = `房间：${currentRoom.roomName}（ID: ${roomId}）`;
+    } catch (err) {
+      document.getElementById("roomTitle").innerText = `房间加载失败`;
+    }
+  }
+
+  async function loadPreferences() {
+    const res = await fetch(`/api/preferences/room/${roomId}`);
+    const preferences = await res.json();
+    const list = document.getElementById("preferenceList");
+    list.innerHTML = "";
+    preferences.forEach(pref => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${pref.preferenceId}</td>
+        <td>${pref.preferenceName}</td>
+        <td>${pref.preferenceValue}</td>
+        <td>${pref.preferenceType}</td>
+        <td>${formatDate(pref.createdAt)}</td>
+        <td>${formatDate(pref.updatedAt)}</td>
+        <td>
+          <button onclick="editPreference('${pref.preferenceId}')">编辑</button>
+          <button onclick="deletePreference('${pref.preferenceId}')">删除</button>
+        </td>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  async function addPreference() {
+    const preferenceId = document.getElementById("preferenceId").value.trim();
+    const preferenceName = document.getElementById("preferenceName").value.trim();
+    const preferenceValue = document.getElementById("preferenceValue").value.trim();
+    const preferenceType = document.getElementById("preferenceType").value.trim();
+
+    if (!preferenceId || !preferenceName || !preferenceValue || !preferenceType) {
+      showError("请输入完整的偏好信息！");
+      return;
+    }
+
+    const payload = { preferenceId, preferenceName, preferenceValue, preferenceType };
+
+    const res = await fetch(`/api/preferences/${roomId}`, {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      await loadPreferences();
+      clearForm();
+    } else {
+      showError("添加失败，请稍后重试！");
+    }
+  }
+
+  async function updatePreference(preferenceId) {
+    const preferenceName = document.getElementById("preferenceName").value.trim();
+    const preferenceValue = document.getElementById("preferenceValue").value.trim();
+    const preferenceType = document.getElementById("preferenceType").value.trim();
+
+    if (!preferenceName || !preferenceValue || !preferenceType) {
+      showError("请输入完整的偏好信息！");
+      return;
+    }
+
+    const payload = { preferenceName, preferenceValue, preferenceType };
+
+    const res = await fetch(`/api/preferences/${roomId}/${preferenceId}`, {
+      method: 'PUT',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      await loadPreferences();
+      clearForm();
+    } else {
+      showError("更新失败，请稍后重试！");
+    }
+  }
+
+  async function editPreference(preferenceId) {
+    const res = await fetch(`/api/preferences/${preferenceId}`);
+    const preference = await res.json();
+
+    document.getElementById("preferenceId").value = preference.preferenceId;
+    document.getElementById("preferenceName").value = preference.preferenceName;
+    document.getElementById("preferenceValue").value = preference.preferenceValue;
+    document.getElementById("preferenceType").value = preference.preferenceType;
+
+    const button = document.querySelector(".form-group button");
+    button.innerText = "更新偏好";
+    button.onclick = () => updatePreference(preference.preferenceId);
+  }
+
+  async function deletePreference(preferenceId) {
+    if (!confirm("确认删除此偏好？")) return;
+
+    const res = await fetch(`/api/preferences/${preferenceId}`, {
+      method: 'DELETE'
+    });
+
+    if (res.ok) {
+      await loadPreferences();
+    } else {
+      showError("删除失败，请稍后重试！");
+    }
+  }
+
+  window.onload = () => {
+    loadRoomInfo();
+    loadPreferences();
+    document.querySelector(".form-group button").onclick = addPreference;
+  };
+
+  // 设置页面按钮链接
+  document.getElementById("backBtn").href = `roomDetail.html?roomId=${roomId}`;
+</script>
+</body>
+</html>

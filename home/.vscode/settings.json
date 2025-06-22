@@ -1,0 +1,25 @@
+{
+    "idf.pythonInstallPath": "d:\\XK\\soft\\Espressif\\tools\\tools\\idf-python\\3.11.2\\python.exe",
+    "idf.port": "/dev/ttyUSB0",
+    "files.associations": {
+        "compare": "c",
+        "cstdint": "c",
+        "base64.h": "c",
+        "inttypes.h": "c",
+        "dht_sensor.h": "c",
+        "dht.h": "c",
+        "common.h": "c",
+        "wifi_connect.h": "c",
+        "light_sensor.h": "c",
+        "device_light.h": "c",
+        "sensors.h": "c",
+        "charconv": "c",
+        "complex": "c",
+        "string": "c",
+        "format": "c",
+        "fstream": "c",
+        "limits": "c",
+        "sstream": "c",
+        "functional": "c"
+    }
+}

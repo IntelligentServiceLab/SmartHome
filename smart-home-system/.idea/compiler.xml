@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="smart-home-manage" />
+        <module name="model" />
+        <module name="smart-home-bpmn" />
+        <module name="smart-home-mqtt" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="service-order" target="17" />
+      <module name="service-product" target="17" />
+      <module name="smart-home-device" target="17" />
+      <module name="smarthomedevice" target="17" />
+    </bytecodeTargetLevel>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="cloud-demo" options="" />
+      <module name="model" options="-parameters" />
+      <module name="service-order" options="-parameters" />
+      <module name="service-product" options="-parameters" />
+      <module name="services" options="" />
+      <module name="smart-home-bpmn" options="-parameters" />
+      <module name="smart-home-device" options="-parameters" />
+      <module name="smart-home-manage" options="-parameters" />
+      <module name="smart-home-mqtt" options="-parameters" />
+      <module name="smarthomedevice" options="-parameters" />
+    </option>
+  </component>
+</project>

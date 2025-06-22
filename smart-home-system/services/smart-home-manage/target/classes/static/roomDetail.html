@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <title>房间详情</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f6f9; margin: 0; }
+        header { background-color: #3f51b5; color: white; padding: 16px; font-size: 20px; text-align: center; position: relative; }
+        .container { padding: 20px; }
+        h2 { margin-top: 0; }
+        .device-form {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .device-form label {
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .device-form select, .device-form input, .device-form button {
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button { background-color: #3f51b5; color: white; border: none; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: center; }
+        .action-btns button { margin: 0 4px; }
+
+        .header-buttons-left {
+            position: absolute; left: 20px; top: 16px;
+        }
+        .header-buttons-left a {
+            margin-right: 10px; color: white; text-decoration: none;
+            padding: 6px 12px; border-radius: 4px;
+        }
+        .header-buttons-left #backBtn { background: #607d8b; }
+
+        .header-buttons-right {
+            position: absolute; right: 20px; top: 16px;
+        }
+        .header-buttons-right a {
+            margin-left: 10px; color: white; text-decoration: none;
+            padding: 6px 12px; border-radius: 4px;
+        }
+        .header-buttons-right #thresholdBtn { background: #ff9800; }
+        .header-buttons-right #dataBtn { background: #009688; }
+        .header-buttons-right #preferenceBtn { background: #4caf50; }
+    </style>
+</head>
+<body>
+<header>
+    📋 房间详情
+    <div class="header-buttons-left">
+        <a id="backBtn" href="#">🔙 返回</a>
+    </div>
+    <div class="header-buttons-right">
+        <a id="dataBtn" href="#">📦 传感器数据可视化</a>
+        <a id="thresholdBtn" href="#">⚙️ 阈值管理</a>
+        <a id="preferenceBtn" href="#">🌟 偏好管理</a>
+    </div>
+</header>
+
+<div class="container">
+    <h2 id="roomTitle">加载中...</h2>
+    <div class="device-form">
+        <label for="deviceId">设备ID：</label>
+        <input type="text" id="deviceId" placeholder="请输入设备ID" />
+
+        <label for="deviceName">设备名称：</label>
+        <input type="text" id="deviceName" placeholder="请输入设备名称" />
+
+        <label for="deviceType">设备类型：</label>
+        <select id="deviceType">
+            <option value="light">灯光</option>
+            <option value="fan">风扇</option>
+            <option value="ac">空调</option>
+            <option value="curtain">窗帘</option>
+            <option value="other">其他</option>
+        </select>
+
+        <button id="submitBtn" onclick="addDevice()">添加设备</button>
+    </div>
+
+    <table>
+        <thead>
+        <tr>
+            <th>设备ID</th>
+            <th>设备名称</th>
+            <th>设备类型</th>
+            <th>设备状态</th>
+            <th>创建时间</th>
+            <th>更新时间</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="deviceList">
+        <!-- 设备数据渲染区域 -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+
+    //转换时间格式
+    function formatDate(isoString) {
+        const date = new Date(isoString);  // 创建一个 Date 对象
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');  // 月份从0开始，所以加1
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = urlParams.get("roomId");
+    let currentRoom = {};
+
+    // 加载房间基本信息
+    async function loadRoomInfo() {
+        const res = await fetch(`/api/rooms/${roomId}`);
+        currentRoom = await res.json();
+        document.getElementById("roomTitle").innerText = `房间：${currentRoom.roomName}（ID: ${roomId}）`;
+    }
+
+    // 加载房间下的所有设备列表
+    async function loadDevices() {
+        const res = await fetch(`/api/devices/room/${roomId}`);
+        const devices = await res.json();
+        const list = document.getElementById("deviceList");
+        list.innerHTML = "";
+
+        devices.forEach(dev => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${dev.deviceId}</td>
+                <td>${dev.deviceName}</td>
+                <td>${dev.deviceType}</td>
+                <td>${dev.deviceStatus}</td>
+                <td>${formatDate(dev.createdAt)}</td>
+                <td>${formatDate(dev.updatedAt)}</td>
+                <td class="action-btns">
+                    <button onclick="editDevice('${dev.deviceId}')">编辑</button>
+                    <button onclick="deleteDevice('${dev.deviceId}')">删除</button>
+                    <button onclick="toggleDevice('${dev.deviceId}')">${dev.deviceStatus === 'on' ? '关闭' : '开启'}</button>
+                </td>`;
+            list.appendChild(row);
+        });
+    }
+
+    // 添加设备
+    async function addDevice() {
+        const deviceId = document.getElementById("deviceId").value.trim();
+        const deviceName = document.getElementById("deviceName").value.trim();
+        const deviceType = document.getElementById("deviceType").value;
+
+        if (!deviceId || !deviceName || !deviceType) {
+            alert("请输入完整的设备信息");
+            return;
+        }
+
+        const payload = { deviceId, deviceName, deviceType };
+        const res = await fetch(`/api/devices/${roomId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            alert("操作失败");
+            return;
+        }
+
+        // 清空表单
+        document.getElementById("deviceId").value = "";
+        document.getElementById("deviceName").value = "";
+        document.getElementById("deviceType").value = "";
+
+        loadDevices();
+    }
+
+    // 编辑设备，表单填充当前设备信息
+    async function editDevice(deviceId) {
+        const res = await fetch(`/api/devices/${deviceId}`);
+        const device = await res.json();
+
+        document.getElementById("deviceId").value = device.deviceId;
+        document.getElementById("deviceName").value = device.deviceName;
+        document.getElementById("deviceType").value = device.deviceType;
+
+        // 修改按钮文本为更新
+        document.querySelector(".device-form button").innerText = "更新设备";
+        document.querySelector(".device-form button").onclick = () => updateDevice(device.deviceId);
+    }
+
+    // 更新设备操作
+    async function updateDevice(deviceId) {
+        const deviceName = document.getElementById("deviceName").value.trim();
+        const deviceType = document.getElementById("deviceType").value;
+
+        const payload = { deviceId, deviceName, deviceType };
+        const res = await fetch(`/api/devices/${roomId}/${deviceId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            loadDevices();
+            // 重置表单并恢复按钮为添加模式
+            document.getElementById("deviceId").value = "";
+            document.getElementById("deviceName").value = "";
+            document.getElementById("deviceType").value = "";
+            document.querySelector(".device-form button").innerText = "添加设备";
+            document.querySelector(".device-form button").onclick = addDevice;
+        } else {
+            alert("更新失败");
+        }
+    }
+
+    // 删除设备
+    async function deleteDevice(deviceId) {
+        if (!confirm("确认删除此设备？")) return;
+        const res = await fetch(`/api/devices/${deviceId}`, { method: "DELETE" });
+        if (res.ok) {
+            loadDevices();
+        } else {
+            alert("删除失败");
+        }
+    }
+
+    // 切换设备状态（开/关）
+    async function toggleDevice(deviceId) {
+        const res = await fetch(`/api/devices/${deviceId}/toggle`, { method: "POST" });
+        if (res.ok) {
+            loadDevices();
+        } else {
+            alert("操作失败");
+        }
+    }
+
+    // 初始化加载
+    window.onload = function() {
+        loadRoomInfo();
+        loadDevices();
+        setInterval(loadDevices, 1000); // 每秒刷新一次设备列表
+    }
+
+    // 设置页面按钮链接
+    document.getElementById("backBtn").href = "index.html";
+    document.getElementById("dataBtn").href = `roomData.html?roomId=${roomId}`;
+    document.getElementById("thresholdBtn").href = `thresholdManagement.html?roomId=${roomId}`;
+    document.getElementById("preferenceBtn").href = `preferenceManagement.html?roomId=${roomId}`;
+</script>
+</body>
+</html>

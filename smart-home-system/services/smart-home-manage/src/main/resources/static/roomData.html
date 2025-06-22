@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <title>房间传感器数据可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f6f9; margin: 0; }
+        header { background-color: #3f51b5; color: white; padding: 16px; font-size: 20px; text-align: center; position: relative; }
+        .container { padding: 20px; }
+        .chart-container { margin-top: 20px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        #charts > div { height: 400px; margin-bottom: 40px; position: relative; }
+        a { color: white; text-decoration: none; background: #607d8b; padding: 6px 12px; border-radius: 4px; }
+        .alarm { position: absolute; top: 10px; right: 10px; color: white; font-weight: bold; background: rgba(0, 0, 0, 0.7); padding: 6px 12px; border-radius: 4px; font-size: 14px; }
+
+        /* 闪烁动画 */
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        .blink {
+            animation: blink 1s infinite;  /* 设置闪烁动画 */
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div style="position: absolute; left: 20px; top: 16px;">
+        <a id="backBtn" href="#">🔙 返回</a>
+    </div>
+    📈 房间传感器数据可视化
+</header>
+
+<div class="container">
+    <h2 id="roomTitle">加载中...</h2>
+    <div id="charts" class="chart-container">
+        <div id="tempChart"></div>
+        <div id="humidityChart"></div>
+        <div id="lightChart"></div>
+    </div>
+</div>
+
+<script>
+    // 从URL中获取房间ID
+    const roomId = new URLSearchParams(location.search).get("roomId");
+
+    // 配置每个传感器的图表ID、名称和类型
+    const chartConfigs = [
+        { id: 'tempChart', name: '温度', sensorType: 'temperature' },
+        { id: 'humidityChart', name: '湿度', sensorType: 'humidity' },
+        { id: 'lightChart', name: '光照', sensorType: 'light' }
+    ];
+
+    // 获取指定房间和传感器类型的数据
+    async function fetchSensorData(sensorType) {
+        const res = await fetch(`/api/sensors/room/${roomId}/${sensorType}`);
+        return await res.json();
+    }
+
+    // 获取该房间的阈值配置（如高低阈值）
+    async function fetchThresholds() {
+        const res = await fetch(`/api/thresholds/room/${roomId}`);
+        return await res.json();
+    }
+
+    // 渲染图表的函数
+    function renderChart(domId, title, dataList, thresholds = {}) {
+        const chartDom = document.getElementById(domId);
+        if (!chartDom) {
+            console.error(`元素 #${domId} 不存在！`);
+            return;
+        }
+
+        const myChart = echarts.init(chartDom);
+
+        // 格式化时间和传感器值数据
+        const times = dataList.map(d => new Date(d.createdAt).toLocaleTimeString());
+        const values = dataList.map(d => parseFloat(d.sensorValue));
+
+        const markLines = [];
+
+        // 如果存在低阈值，添加标记线
+        if (thresholds.lowThresholdValue != null) {
+            markLines.push({
+                yAxis: thresholds.lowThresholdValue,
+                name: '低阈值',
+                lineStyle: {
+                    color: '#2196f3',
+                    type: 'dashed',
+                    width: 2
+                },
+                label: {
+                    formatter: '低阈值: {c}',
+                    position: 'end'
+                }
+            });
+        }
+
+        // 如果存在高阈值，添加标记线
+        if (thresholds.highThresholdValue != null) {
+            markLines.push({
+                yAxis: thresholds.highThresholdValue,
+                name: '高阈值',
+                lineStyle: {
+                    color: '#f44336',
+                    type: 'dashed',
+                    width: 2
+                },
+                label: {
+                    formatter: '高阈值: {c}',
+                    position: 'end'
+                }
+            });
+        }
+
+        // 配置图表的各项参数
+        const option = {
+            title: {
+                text: title,
+                left: 'center',
+                top: '10px',
+                subtext: `低阈值: ${thresholds.lowThresholdValue ?? '未设置'} | 高阈值: ${thresholds.highThresholdValue ?? '未设置'}`,
+                subtextStyle: { fontSize: 14, color: '#333', fontWeight: 'normal' }
+            },
+            tooltip: { trigger: 'axis' },
+            xAxis: {
+                type: 'category',
+                data: times,
+                name: '时间',
+                boundaryGap: false
+            },
+            yAxis: {
+                type: 'value',
+                name: title,
+                min: 0,
+                max: 100
+            },
+            series: [{
+                data: values,
+                type: 'line',
+                smooth: true,
+                lineStyle: { width: 2 },
+                markLine: {
+                    silent: true,
+                    data: markLines
+                }
+            }],
+            visualMap: thresholds.highThresholdValue != null && thresholds.lowThresholdValue != null ? {
+                show: false,
+                dimension: 1, // 针对 y 值做判断
+                pieces: [
+                    { lt: thresholds.lowThresholdValue, color: '#2196f3' }, // 蓝色（低于阈值）
+                    { gte: thresholds.lowThresholdValue, lte: thresholds.highThresholdValue, color: '#3f51b5' }, // 正常
+                    { gt: thresholds.highThresholdValue, color: '#f44336' } // 红色（高于阈值）
+                ]
+            } : undefined
+        };
+
+        myChart.setOption(option);
+
+        // 处理报警提示（右上角）
+        const alarmNode = chartDom.querySelector('.alarm');
+        if (alarmNode) {
+            chartDom.removeChild(alarmNode);  // 移除旧的警告
+        }
+
+        // 只使用最后一条数据来判断
+        const lastValue = values[values.length - 1];
+
+        // 判断是否需要显示警告
+        let alarmMessage = '';
+        let alarmStyle = '';
+        if (lastValue > thresholds.highThresholdValue) {
+            alarmMessage = `⚠️ 高阈值警告！`;
+            alarmStyle = 'rgba(255, 0, 0, 0.7)';
+        } else if (lastValue < thresholds.lowThresholdValue) {
+            alarmMessage = `⚠️ 低阈值警告！`;
+            alarmStyle = 'rgba(0, 0, 255, 0.7)';
+        }
+
+        // 如果有警告，则显示并闪烁
+        if (alarmMessage) {
+            const alarmNode = document.createElement('div');
+            alarmNode.className = 'alarm blink'; // 添加闪烁动画类
+            alarmNode.style.fontSize = '16px';  // 字体大小
+            alarmNode.innerText = alarmMessage;
+            alarmNode.style.backgroundColor = alarmStyle;
+            chartDom.appendChild(alarmNode);
+        }
+    }
+
+    // 加载房间信息（如房间名称）
+    async function loadRoomInfo() {
+        const res = await fetch(`/api/rooms/${roomId}`);
+        const room = await res.json();
+        document.getElementById("roomTitle").innerText = `房间：${room.roomName}（ID: ${roomId}）`;
+    }
+
+    // 初始化所有图表并渲染
+    async function initCharts() {
+        await loadRoomInfo();
+        const thresholds = await fetchThresholds();
+        const thMap = {};
+        thresholds.forEach(t => thMap[t.thresholdType] = t);
+
+        // 获取各传感器的数据并渲染图表
+        for (const cfg of chartConfigs) {
+            const data = await fetchSensorData(cfg.sensorType);
+            renderChart(cfg.id, cfg.name, data.reverse(), thMap[cfg.sensorType]);
+
+            // 每秒更新一次数据
+            setInterval(async () => {
+                const updatedData = await fetchSensorData(cfg.sensorType);
+                renderChart(cfg.id, cfg.name, updatedData.reverse(), thMap[cfg.sensorType]);
+            }, 1000);  // 每秒更新一次
+        }
+    }
+
+    // 页面加载完成后初始化图表
+    window.onload = () => {
+        initCharts();
+    };
+
+    // 设置页面按钮链接
+    document.getElementById("backBtn").href = `roomDetail.html?roomId=${roomId}`;
+</script>
+</body>
+</html>

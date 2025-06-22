@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>阈值管理</title>
+  <style>
+    body { font-family: sans-serif; background: #f4f6f9; margin: 0; }
+    header { background-color: #3f51b5; color: white; padding: 16px; font-size: 20px; text-align: center; position: relative; }
+    .container { padding: 20px; }
+    h2 { margin-top: 0; }
+    .form-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .form-group label {
+      font-weight: bold;
+      margin-left: 10px;
+    }
+    .form-group input, .form-group select {
+      padding: 8px;
+      font-size: 16px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    .form-group button {
+      background-color: #3f51b5;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    .error {
+      color: red;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+<header>
+  ⚙️ 阈值管理
+  <div style="position: absolute; left: 20px; top: 16px;">
+    <a id="backBtn" href="#">🔙 返回</a>
+  </div>
+</header>
+
+<div class="container">
+  <h2 id="roomTitle">加载中...</h2>
+
+  <!-- 表单区域 -->
+  <div class="form-group">
+<!--    <label for="thresholdId">阈值ID：</label>-->
+    <input type="text" id="thresholdId" placeholder="请输入阈值ID" />
+
+<!--    <label for="thresholdName">阈值名称：</label>-->
+    <input type="text" id="thresholdName" placeholder="请输入阈值名称" />
+
+<!--    <label for="thresholdType">阈值类型：</label>-->
+    <select id="thresholdType">
+      <option value="temperature">温度</option>
+      <option value="humidity">湿度</option>
+      <option value="light">光照</option>
+    </select>
+
+<!--    <label for="lowThresholdValue">最小阈值：</label>-->
+    <input type="text" id="lowThresholdValue" placeholder="请输入最小阈值" />
+
+<!--    <label for="highThresholdValue">最大阈值：</label>-->
+    <input type="text" id="highThresholdValue" placeholder="请输入最大阈值" />
+
+    <button>添加阈值</button>
+  </div>
+
+  <div class="error" id="errorMessage"></div>
+
+  <!-- 阈值表格 -->
+  <table>
+    <thead>
+    <tr>
+      <th>阈值ID</th>
+      <th>名称</th>
+      <th>类型</th>
+      <th>最小阈值</th>
+      <th>最大阈值</th>
+      <th>创建时间</th>
+      <th>更新时间</th>
+      <th>操作</th>
+    </tr>
+    </thead>
+    <tbody id="thresholdList"></tbody>
+  </table>
+</div>
+
+<script>
+  const roomId = new URLSearchParams(window.location.search).get('roomId');
+  let currentRoom = null;
+
+  function formatDate(isoString) {
+    const date = new Date(isoString);
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const h = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    const s = String(date.getSeconds()).padStart(2, '0');
+    return `${y}-${m}-${d} ${h}:${min}:${s}`;
+  }
+
+  function showError(msg) {
+    document.getElementById("errorMessage").innerText = msg;
+  }
+
+  function clearError() {
+    document.getElementById("errorMessage").innerText = "";
+  }
+
+  function clearForm() {
+    document.getElementById("thresholdId").value = "";
+    document.getElementById("thresholdName").value = "";
+    document.getElementById("thresholdType").value = "temperature";
+    document.getElementById("lowThresholdValue").value = "";
+    document.getElementById("highThresholdValue").value = "";
+    document.querySelector(".form-group button").innerText = "添加阈值";
+    document.querySelector(".form-group button").onclick = addThreshold;
+    clearError();
+  }
+
+  async function loadRoomInfo() {
+    try {
+      const res = await fetch(`/api/rooms/${roomId}`);
+      currentRoom = await res.json();
+      document.getElementById("roomTitle").innerText = `房间：${currentRoom.roomName}（ID: ${roomId}）`;
+    } catch (e) {
+      document.getElementById("roomTitle").innerText = `房间加载失败`;
+    }
+  }
+
+  async function loadThresholds() {
+    const res = await fetch(`/api/thresholds/room/${roomId}`);
+    const data = await res.json();
+    const list = document.getElementById("thresholdList");
+    list.innerHTML = "";
+    data.forEach(thr => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${thr.thresholdId}</td>
+        <td>${thr.thresholdName || ''}</td>
+        <td>${thr.thresholdType}</td>
+        <td>${thr.lowThresholdValue}</td>
+        <td>${thr.highThresholdValue}</td>
+        <td>${formatDate(thr.createdAt)}</td>
+        <td>${formatDate(thr.updatedAt)}</td>
+        <td>
+          <button onclick="editThreshold('${thr.thresholdId}')">编辑</button>
+          <button onclick="deleteThreshold('${thr.thresholdId}')">删除</button>
+        </td>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  async function addThreshold() {
+    const thresholdId = document.getElementById("thresholdId").value.trim();
+    const thresholdName = document.getElementById("thresholdName").value.trim();
+    const thresholdType = document.getElementById("thresholdType").value;
+    const lowThresholdValue = parseFloat(document.getElementById("lowThresholdValue").value.trim());
+    const highThresholdValue = parseFloat(document.getElementById("highThresholdValue").value.trim());
+
+    if (!thresholdId || !thresholdName || isNaN(lowThresholdValue) || isNaN(highThresholdValue)) {
+      showError("请输入完整且正确的阈值信息！");
+      return;
+    }
+
+    const payload = { thresholdId, thresholdName, thresholdType, lowThresholdValue, highThresholdValue };
+
+    const res = await fetch(`/api/thresholds/${roomId}`, {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      await loadThresholds();
+      clearForm();
+    } else {
+      showError("添加失败，请稍后重试！");
+    }
+  }
+
+  async function updateThreshold(thresholdId) {
+    const thresholdName = document.getElementById("thresholdName").value.trim();
+    const thresholdType = document.getElementById("thresholdType").value;
+    const lowThresholdValue = parseFloat(document.getElementById("lowThresholdValue").value.trim());
+    const highThresholdValue = parseFloat(document.getElementById("highThresholdValue").value.trim());
+
+    if (!thresholdName || isNaN(lowThresholdValue) || isNaN(highThresholdValue)) {
+      showError("请输入完整且正确的阈值信息！");
+      return;
+    }
+
+    const payload = { thresholdName, thresholdType, lowThresholdValue, highThresholdValue };
+
+    const res = await fetch(`/api/thresholds/${roomId}/${thresholdId}`, {
+      method: 'PUT',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      await loadThresholds();
+      clearForm();
+    } else {
+      showError("更新失败，请稍后重试！");
+    }
+  }
+
+  async function editThreshold(thresholdId) {
+    const res = await fetch(`/api/thresholds/${thresholdId}`);
+    const thr = await res.json();
+
+    document.getElementById("thresholdId").value = thr.thresholdId;
+    document.getElementById("thresholdName").value = thr.thresholdName || '';
+    document.getElementById("thresholdType").value = thr.thresholdType;
+    document.getElementById("lowThresholdValue").value = thr.lowThresholdValue;
+    document.getElementById("highThresholdValue").value = thr.highThresholdValue;
+
+    const button = document.querySelector(".form-group button");
+    button.innerText = "更新阈值";
+    button.onclick = () => updateThreshold(thr.thresholdId);
+  }
+
+  async function deleteThreshold(thresholdId) {
+    if (!confirm("确认删除该阈值？")) return;
+
+    const res = await fetch(`/api/thresholds/${thresholdId}`, {
+      method: 'DELETE'
+    });
+
+    if (res.ok) {
+      await loadThresholds();
+    } else {
+      showError("删除失败，请稍后重试！");
+    }
+  }
+
+  window.onload = () => {
+    loadRoomInfo();
+    loadThresholds();
+    document.querySelector(".form-group button").onclick = addThreshold;
+  };
+  // 设置页面按钮链接
+  document.getElementById("backBtn").href = `roomDetail.html?roomId=${roomId}`;
+</script>
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能家居房间管理</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+        }
+        header {
+            background-color: #3f51b5;
+            color: white;
+            padding: 16px;
+            font-size: 24px;
+            text-align: center;
+        }
+        .controls {
+            margin: 16px;
+            text-align: center;
+        }
+        input, button, select {
+            padding: 8px;
+            font-size: 16px;
+            border-radius: 4px;
+            margin: 10px;
+        }
+        button {
+            background-color: #3f51b5;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .room-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px;
+        }
+        .room-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 10px;
+            width: 220px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
+        }
+        .room-card:hover {
+            transform: scale(1.05);
+        }
+        .controls div {
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .room-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+<header>🏠 智能家居房间管理</header>
+
+<div class="controls">
+    <h2>创建新房间</h2>
+    <div>
+        <label for="roomId">房间ID：</label>
+        <input type="text" id="roomId" placeholder="请输入房间ID" required>
+    </div>
+    <div>
+        <label for="roomName">房间名称：</label>
+        <input type="text" id="roomName" placeholder="请输入房间名称" required>
+    </div>
+    <div>
+        <label for="roomType">房间类型：</label>
+        <select id="roomType">
+            <option value="living-room">客厅</option>
+            <option value="bedroom">卧室</option>
+            <option value="kitchen-room">厨房</option>
+            <option value="bathroom">浴室</option>
+            <option value="study-room">书房</option>
+            <option value="balcony-room">阳台</option>
+            <option value="other">其他</option>
+        </select>
+    </div>
+    <div>
+        <button id="submitBtn" onclick="createRoom()">创建房间</button>
+    </div>
+</div>
+
+<div class="room-container" id="roomContainer"></div>
+
+<script>
+    let allRooms = [];
+
+    // 房间图标映射，根据房间名称选择对应图标
+    const roomIcons = {
+        "living-room": "🛋️",
+        "bedroom": "🛏️",
+        "kitchen-room": "🍽️",
+        "bathroom": "🚿",
+        "study-room": "📚",
+        "balcony-room": "☀️",
+        "other": "🏠"
+    };
+
+    // 加载所有房间数据并渲染
+    async function loadRooms() {
+        try {
+            const res = await fetch("/api/rooms");
+            if (!res.ok) throw new Error("无法加载房间数据");
+            allRooms = await res.json();
+            renderRooms(); // 渲染房间列表
+        } catch (error) {
+            console.error("加载房间失败:", error);
+        }
+    }
+
+    // 渲染房间卡片到页面中
+    function renderRooms() {
+        const container = document.getElementById("roomContainer");
+        container.innerHTML = ""; // 清空之前的内容
+
+        allRooms.forEach(room => {
+            const roomIcon = roomIcons[room.roomType] || roomIcons["默认"];
+
+            const card = document.createElement("div");
+            card.className = "room-card";
+
+            // 填充卡片内容
+            card.innerHTML = `
+                <div class="room-icon" style="cursor: pointer;">${roomIcon}</div>
+                <h3 class="room-title" style="cursor: pointer;">${room.roomName}</h3>
+                <p>房间ID: ${room.roomId}</p>
+                <p>类型: ${room.roomType}</p>
+                <button onclick="deleteRoom(event, '${room.roomId}')">删除</button>
+                <button onclick="editRoom(event, '${room.roomId}')">编辑</button>
+            `;
+
+            // 跳转详情页事件绑定
+            card.querySelector(".room-icon").onclick = () => {
+                window.location.href = `/roomDetail.html?roomId=${room.roomId}`;
+            };
+            card.querySelector(".room-title").onclick = () => {
+                window.location.href = `/roomDetail.html?roomId=${room.roomId}`;
+            };
+
+            container.appendChild(card);
+        });
+    }
+
+    // 创建一个新房间
+    async function createRoom() {
+        const roomId = document.getElementById("roomId").value.trim();
+        const roomName = document.getElementById("roomName").value.trim();
+        const roomType = document.getElementById("roomType").value;
+
+        if (!roomId || !roomName || !roomType) {
+            alert("请输入完整的房间信息");
+            return;
+        }
+
+        try {
+            const newRoom = { roomId, roomName, roomType };
+            const res = await fetch("/api/rooms", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(newRoom)
+            });
+
+            if (!res.ok) throw new Error("创建房间失败");
+
+            // 清空表单
+            document.getElementById("roomId").value = "";
+            document.getElementById("roomName").value = "";
+            document.getElementById("roomType").value = "";
+
+            const createdRoom = await res.json();
+            allRooms.push(createdRoom); // 添加到本地房间数组
+            renderRooms(); // 重新渲染
+        } catch (error) {
+            console.error("创建房间失败:", error);
+        }
+    }
+
+    // 删除指定房间
+    async function deleteRoom(event, roomId) {
+        event.stopPropagation(); // 阻止点击冒泡，避免跳转详情页
+        try {
+            if (!confirm("确认删除此设备？")) return;
+            const res = await fetch(`/api/rooms/${roomId}`, {
+                method: "DELETE"
+            });
+
+            if (!res.ok) throw new Error("删除房间失败");
+
+            // 从本地数组中移除
+            allRooms = allRooms.filter(room => room.roomId !== roomId);
+            renderRooms(); // 重新渲染
+        } catch (error) {
+            console.error("删除房间失败:", error);
+        }
+    }
+
+    // 编辑房间信息：填充表单 + 切换按钮为更新
+    async function editRoom(event, roomId) {
+        event.stopPropagation(); // 阻止跳转详情页
+
+        const room = allRooms.find(r => r.roomId === roomId);
+        if (!room) {
+            alert("房间不存在");
+            return;
+        }
+
+        // 填充表单数据
+        document.getElementById("roomId").value = room.roomId;
+        document.getElementById("roomName").value = room.roomName;
+        document.getElementById("roomType").value = room.roomType;
+
+        // 切换按钮为更新模式
+        const createButton = document.getElementById("submitBtn");
+        createButton.innerText = "更新房间";
+        createButton.onclick = () => updateRoom(roomId);
+    }
+
+    // 更新已存在的房间信息
+    async function updateRoom(roomId) {
+        const roomName = document.getElementById("roomName").value.trim();
+        const roomType = document.getElementById("roomType").value;
+
+        if (!roomName || !roomType) {
+            alert("请输入房间名称和类型");
+            return;
+        }
+
+        try {
+            const updatedRoom = { roomId, roomName, roomType };
+            const res = await fetch(`/api/rooms/${roomId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(updatedRoom)
+            });
+
+            if (!res.ok) throw new Error("更新房间失败");
+
+            const updatedRoomData = await res.json();
+            allRooms = allRooms.map(room => room.roomId === roomId ? updatedRoomData : room);
+            renderRooms(); // 更新页面
+
+            // 重置表单并恢复按钮为“创建房间”
+            document.getElementById("roomId").value = "";
+            document.getElementById("roomName").value = "";
+            document.getElementById("roomType").value = "";
+            const createButton = document.getElementById("submitBtn");
+            createButton.innerText = "创建房间";
+            createButton.onclick = createRoom;
+        } catch (error) {
+            console.error("更新房间失败:", error);
+        }
+    }
+
+    // 页面加载时获取所有房间
+    loadRooms();
+</script>
+
+</body>
+</html>
