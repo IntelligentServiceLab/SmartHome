@@ -172,8 +172,8 @@ idf.py flash monitor
 ## 联系方式
 
 作者：李龙华
- 邮箱：[your_email@example.com](mailto:your_email@example.com)
- GitHub：https://github.com/yourusername/esp32-room-control
+ 邮箱：[1651300994@qq.com](1651300994@qq.com)
+ GitHub：[https://github.com/yourusername/esp32-room-control](https://github.com/IntelligentServiceLab/SmartHome)
 
 ------
 
